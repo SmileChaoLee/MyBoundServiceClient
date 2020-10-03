@@ -9,11 +9,12 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -28,7 +29,6 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "com.smile.myboundserviceclient.MainActivity";
 
     private final String serviceName = "com.smile.servicetest.MyBoundService.START_SERVICE";
-    private final String serviceClassName = "com.smile.servicetest.MyBoundService";
     private final String packageNameOfService = "com.smile.servicetest";
 
     private final int ServiceStopped = 0x00;
@@ -37,8 +37,6 @@ public class MainActivity extends AppCompatActivity {
     private final int MusicPaused = 0x03;
     private final int BinderIPC = 1;
     private final int MessengerIPC = 2;
-
-    private Class<?> serviceClass = null;
 
     private TextView messageText;
     private Button startBindServiceButton;
@@ -52,7 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
     private Messenger clientMessenger = new Messenger(new ClientHandler());
     private class ClientHandler extends Handler {
-
+        public ClientHandler() {
+            super(Looper.myLooper());
+        }
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -90,8 +90,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        messageText = (TextView) findViewById(R.id.messageText);
-        startBindServiceButton = (Button) findViewById(R.id.startBindService);
+        messageText = findViewById(R.id.messageText);
+        startBindServiceButton = findViewById(R.id.startBindService);
         startBindServiceButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -100,14 +100,14 @@ public class MainActivity extends AppCompatActivity {
                 doBindToService();
             }
         });
-        unbindStopServiceButton = (Button) findViewById(R.id.unbindStopService);
+        unbindStopServiceButton = findViewById(R.id.unbindStopService);
         unbindStopServiceButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 unbindAndStopMusicService();
             }
         });
-        playButton = (Button) findViewById(R.id.playMusic);
+        playButton = findViewById(R.id.playMusic);
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        pauseButton = (Button) findViewById(R.id.pauseMusic);
+        pauseButton = findViewById(R.id.pauseMusic);
         pauseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        exitBoundService = (Button) findViewById(R.id.exitBoundService);
+        exitBoundService = findViewById(R.id.exitBoundService);
         exitBoundService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -172,14 +172,6 @@ public class MainActivity extends AppCompatActivity {
                 } catch (RemoteException ex) {
                     ex.printStackTrace();
                 }
-
-                /*
-                // set statuses for buttons
-                if (myBoundService != null) {
-                    pauseButton.setEnabled(myBoundService.isMusicPlaying());
-                    playButton.setEnabled(!pauseButton.isEnabled());
-                }
-                */
             }
 
             @Override
@@ -230,20 +222,18 @@ public class MainActivity extends AppCompatActivity {
         // start service
         // if (!MyBoundService.isServiceRunnding) {
         try {
-            Field isServiceRunning;
             boolean isRunning = false;
-            // isServiceRunning = serviceClass.getDeclaredField("isServiceRunning");
-            // isRunning = isServiceRunning.getBoolean(serviceClass);
             if (!isRunning) {
-                // MyBoundService is not running
-                // Intent serviceIntent = new Intent(this, MyBoundService.class);
-                Intent serviceIntent = new Intent(serviceName);
+                // Intent serviceIntent = new Intent(serviceName);
+                // serviceIntent.setPackage(packageNameOfService);  // must set the package name of bound service
+                // or
+                Intent serviceIntent = new Intent();
+                serviceIntent.setComponent(new ComponentName("com.smile.servicetest", "com.smile.servicetest.MyBoundService"));
                 // parameters for this Intent
                 Bundle extras = new Bundle();
                 // extras.putInt("BINDER_OR_MESSENGER", MyBoundService.MessengerIPC);
                 extras.putInt("BINDER_OR_MESSENGER", MessengerIPC);
                 serviceIntent.putExtras(extras);
-                serviceIntent.setPackage(packageNameOfService);  // must set the package name of bound service
                 startService(serviceIntent);
 
                 startBindServiceButton.setEnabled(false);
@@ -283,13 +273,14 @@ public class MainActivity extends AppCompatActivity {
             Log.i(TAG, "BoundServiceActivityByMessenger - Binding to service");
             Toast.makeText(this, "Binding ...", Toast.LENGTH_SHORT).show();
             if (!isServiceBound) {
-                // Intent bindServiceIntent = new Intent(this, MyBoundService.class);
-                Intent bindServiceIntent = new Intent(serviceName);
+                // Intent bindServiceIntent = new Intent(serviceName);
+                // bindServiceIntent.setPackage(packageNameOfService);  // must set the package name of bound service
+                // or
+                Intent bindServiceIntent = new Intent();
+                bindServiceIntent.setComponent(new ComponentName("com.smile.servicetest", "com.smile.servicetest.MyBoundService"));
                 // parameters for this Intent
                 Bundle extras = new Bundle();
-                // extras.putInt("BINDER_OR_MESSENGER", MyBoundService.MessengerIPC);
                 extras.putInt("BINDER_OR_MESSENGER", MessengerIPC);
-                bindServiceIntent.setPackage(packageNameOfService);  // must set the package name of bound service
                 bindServiceIntent.putExtras(extras);
 
                 isServiceBound = bindService(bindServiceIntent, myServiceConnection, Context.BIND_AUTO_CREATE);
@@ -320,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 msg.replyTo = clientMessenger;
                 sendMessenger.send(msg);
-            } catch (RemoteException ex) {
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
 
